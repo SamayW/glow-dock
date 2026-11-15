@@ -1,6 +1,7 @@
 // dockglow — draws the "Glow glass" Dock icons and wallpaper.
 // usage: dockglow batch < lines   (sym|path|symbol|hex  or  app|path|sat/white|hex)
 //        dockglow wallpaper <out.png>
+//        dockglow preview <out.png>     (the README image: wallpaper + a Dock of glow tiles)
 import AppKit
 import CoreImage
 func c(_ h: Int, _ a: CGFloat = 1) -> NSColor { NSColor(srgbRed: CGFloat((h>>16)&255)/255, green: CGFloat((h>>8)&255)/255, blue: CGFloat(h&255)/255, alpha: a) }
@@ -82,4 +83,29 @@ if args.count >= 3 && args[1] == "wallpaper" {
     if !ok { fails += 1; print("BLOCKED \(path)") }
   }
   exit(fails > 0 ? 3 : 0)
-} else { print("usage: dockglow batch | wallpaper <out.png>"); exit(1) }
+} else if args.count >= 3 && args[1] == "preview" {
+  // Drawn with the same functions as the real icons, so the README shows exactly what installs.
+  let W: CGFloat = 2400, H: CGFloat = 640
+  let tiles: [(String, Int)] = [("command", 0xA78BFA), ("bubble.left.and.bubble.right", 0x5EEAD4), ("play", 0xFDBA74),
+    ("iphone", 0xE2E8F0), ("square.stack.3d.up", 0x93C5FD), ("arrow.down", 0xF0ABFC),
+    ("doc.on.clipboard", 0x38BDF8), ("camera.viewfinder", 0x38BDF8), ("moon", 0x818CF8)]
+  // An explicit 1x bitmap: lockFocus would render at the screen's scale.
+  let out = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(W), pixelsHigh: Int(H), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+  NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: out)
+  wallpaper(W, H).draw(in: NSRect(x: 0, y: 0, width: W, height: H))
+  let tile: CGFloat = 200, gap: CGFloat = 8, pad: CGFloat = 26
+  let dockW = CGFloat(tiles.count) * tile + CGFloat(tiles.count - 1) * gap + pad * 2 + 40, dockH = tile + pad * 2 - 40
+  let dock = NSRect(x: (W - dockW) / 2, y: 110, width: dockW, height: dockH)
+  let shelf = NSBezierPath(roundedRect: dock, xRadius: 44, yRadius: 44)
+  NSColor.white.withAlphaComponent(0.07).setFill(); shelf.fill()
+  NSColor.white.withAlphaComponent(0.14).setStroke(); shelf.lineWidth = 1.5; shelf.stroke()
+  for (i, t) in tiles.enumerated() {
+    let x = dock.minX + pad + 20 + CGFloat(i) * (tile + gap)
+    glassTile(NSRect(x: x, y: dock.minY + 4, width: tile, height: tile), sym(t.0, tile * 0.32), c(t.1))
+  }
+  // the divider between stacks and the Devices shortcuts, like the real Dock's
+  NSColor.white.withAlphaComponent(0.22).setFill()
+  NSRect(x: dock.minX + pad + 20 + 6 * (tile + gap) - gap / 2 - 1, y: dock.minY + 40, width: 2, height: dockH - 80).fill()
+  NSGraphicsContext.restoreGraphicsState()
+  try! out.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: args[2])); print("preview \(Int(W))x\(Int(H))")
+} else { print("usage: dockglow batch | wallpaper <out.png> | preview <out.png>"); exit(1) }
