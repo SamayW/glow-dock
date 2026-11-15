@@ -1,0 +1,6 @@
+build/
+dist/
+projects.conf
+.DS_Store
+Icon?
+downloads.conf
